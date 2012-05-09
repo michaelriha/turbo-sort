@@ -1,0 +1,105 @@
+TODO: GUI configuration tool
+TODO: Fix multi-episode rename for nondefault format strings
+------------------------
+Version 2.1.0 - 5/9/2012
+------------------------
+Adds %T (TITLE), %sm (Mar), %SM (MAR), and %FM (MARCH) format strings
+
+Fixed really stupid overwrite 'bug'
+
+Added stay_open and no_rename fields in addition to debug. Stay_open prompts before exit, and no_rename makes the script print output without sorting files (no file operations at all -- mainly for test)
+
+Added an exception where the file is thought to be a tv show with Y/M/D, but has no season. Will now detect these files as movies.
+
+Detects irregularly spaced quality from title in movies (e.g. Movie.Title.2007.LIMITED.1080p now works where before only Movie.Title.2007.1080p did)
+
+Allows rename of movies without quality or year attributes, but WILL NOT BE ABLE TO FORMAT THE FILENAME, ONLY MOVES THE FILE TO MOVIE DIRECTORY. (e.g. "ctf.jack.and.jill.xvid.avi" -> dest\Ctf Jack and Jill.avi)
+
+Added mp4 as default extension since the Scene adopted x264 for sd rips.
+
+Improved bracket sanitization to check for mismatched right bracket.
+
+Improve output by dynamically altering the size of the path displayed to fit on a line
+
+Added outputfull field to prevent dynamic output size.
+
+Removed redundant calls to index_fs()
+
+Changelog in descending version order
+
+Version 2.0.0
+-------------
+Adds format string support similar to SABnzbd. May be buggy although it passed my tests.
+Improved code readability
+Should support python 3.x now (lol, print(" ") vs print " ")
+
+Version 1.4.1
+-------------
+Can't remember, fixed some bugs or something
+
+Version 1.4.0
+-------------
+Added fix for movies of form "The.Title.MULTI.1080p.x264-whatever.mkv"
+Also added fix for bluray before 1080p/720p/etc
+Preliminary changes to implement format strings
+Code cleaned up
+Added try/except to silence errors.
+Added debug field to allow errors through
+
+Version 1.3.4
+-------------
+Added case for showname.[1x01]., showname.[01x01]., etc
+Added new "verbose" option to stop output before script terminates
+Cleaner output
+
+Version 1.3.3
+-------------
+Added remove US/(US) option
+Improved error handling
+
+Version 1.3.2
+-------------
+Fixed renaming for Dexter
+
+Version 1.3.1
+-------------
+Added new field "remove_duplicates" -- If set to True and a file already exists, the new version will be deleted.
+
+Version 1.3
+-------------
+Code is cleaner, more concise and readable.
+Slight performance optimizations, now uses os.renames instead of os.rename
+Fixed potential bug detecting show.0101.* type shows.
+Now renames movies like Title (Year).ext
+
+Version 1.2.2
+-------------
+More performance optimizations. (Runs ~80% faster than version 1.2 when renaming 8 files)
+Fixed a bug detecting archives.
+Fixed a bug where the script crashes if there is a subdirectory within a subdirectory.
+
+Version 1.2.1
+-------------
+More performance optimizations.
+Removed special case for 24 and 30 rock, improved detection algorithm.
+
+Version 1.2
+-----------
+Now checks for archives before deleting source directory.
+Performance optimizations to reduce number of procedural calls.
+Now uses string.capwords() instead of string.title() to capitalize.
+More specific error messages.
+
+Version 1.1
+-----------
+Fixed bug where tv shows were improperly detected.
+Fixed bug where "Archer.2009.SxxExx.*" is detected as a dated show.
+Added support for movie rename.
+Added support for dual-episodes (ex: S01E05E06).
+Added special case for shows that begin with a number (ex: 24, 30 Rock).
+Now deletes the folder the show/movie was moved from if it's empty or there's nothing else to process.
+Now has verbose CLI output.
+
+Version 1.0
+-----------
+Rewritten from scratch, initial version.
