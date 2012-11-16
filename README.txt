@@ -5,11 +5,6 @@ Below is a brief description of what each option does. After you've changed them
 +---------+
 | General |
 +---------+
-extensions
-   specify what extensions to match. ex. ["mkv", "avi", "myextension", "mp4"]
-
-sourcedir
-   the directory the script will search for files ending in ext in
 
 tvdest
    TV shows will be moved to "tvdest\Show Name\Season #\Show Name S0# E##.ext"
@@ -18,28 +13,35 @@ tvdest
 moviedest
    Movies will be moved to "moviedest\Movie Name (Year).ext" by default
 
+sourcedir
+   the directory the script will search for files ending in ext in
+
+extensions
+   specify what extensions to match. ex. ["mkv", "avi", "myextension", "mp4"]
+
 ----------------------------------------------------------------------------------------
 
 overwrite
    Set to True to overwrite files in the destination directory with ones from the source.
 
-remove_US
-   Set to True to remove (US) and US from filenames (does not work for other countries.. add it yourself)
-
-debug
-   Set to True to disable error handling (allow script to crash when it fails to parse)
-
-no_rename
-   Set to True to disable the script from performing file operations (will only display output)
+remove_CC
+   Set to True to remove country codes such as US, UK, DE, NL, BR from filenames -- specified in COUNTRIES
 
 verbose
    Set to True to get command line output
 
-stay_open
-   Set to True to keep the console open after script has finished execution
+truncate
+   Set to True to enable 80-char wide output truncation
 
-outputfull
-   Set to True to disable 80-char wide output truncation
+notify
+   Set to true to enable popup notifications instead of shell output. This option supersedes truncate.
+   YOU MUST INSTALL PYNOTIFY TO USE THIS FUNCTION!! http://home.gna.org/py-notify/	
+
+stay_open
+   Set to True to keep the shell window open after script has finished execution
+
+no_rename
+   Set to True to disable the script from performing file operations (will only display output)
 
 +----------------+
 | Format Strings |

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# turbo_sort v2.1.1
+# turbo_sort v2.2
 # This program sorts downloaded TV show and movie files
 # Copyright (C) 2012 Michael Riha
 #
