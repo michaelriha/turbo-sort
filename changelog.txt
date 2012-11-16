@@ -1,6 +1,21 @@
+TODO: Fix separated Season/Episode like "The Show S02 E05.mkv" 
 TODO: GUI configuration tool
 TODO: Fix multi-episode rename for nondefault format strings
-------------------------
+--------------------------
+Version 2.2.0 - 11/15/2012
+--------------------------
+Refactored code and improved comments & readability
+
+Fixed rename on files like "The Show - S02E05.mkv"
+
+Fixed bug where sourcedir is deleted if it is empty
+
+New titlecaser!! Covers more cases but should run as fast
+
+Fixed permissions error while copying between filesystems - Thanks to Saad Javed
+
+Added popup notifications via pynotify library - Thanks to Saad Javed
+
 Version 2.1.0 - 5/9/2012
 ------------------------
 Adds %T (TITLE), %sm (Mar), %SM (MAR), and %FM (MARCH) format strings
@@ -9,7 +24,7 @@ Fixed really stupid overwrite 'bug'
 
 Added stay_open and no_rename fields in addition to debug. Stay_open prompts before exit, and no_rename makes the script print output without sorting files (no file operations at all -- mainly for test)
 
-Added an exception where the file is thought to be a tv show with Y/M/D, but has no season. Will now detect these files as movies.
+Added an exception where the file is thought to be a non-dated show with a year, but has no season. Will now detect these files as movies.
 
 Detects irregularly spaced quality from title in movies (e.g. Movie.Title.2007.LIMITED.1080p now works where before only Movie.Title.2007.1080p did)
 

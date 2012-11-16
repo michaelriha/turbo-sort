@@ -1,6 +1,6 @@
-# !/usr/bin/env python
+#!/usr/bin/env python
 #
-# turbo_sort v2.1
+# turbo_sort v2.1.1
 # This program sorts downloaded TV show and movie files
 # Copyright (C) 2012 Michael Riha
 #
@@ -19,6 +19,7 @@
 
 import os
 import re
+import shutil
 import string
 
 # Edit these variables to your liking, make sure to use \\ for backslash or / for forward slash 
@@ -31,41 +32,70 @@ moviedest  = "D:\\Videos\\Movies"
 sourcedir  = "D:\\Downloads\\Usenet"
 extensions = ["mkv", "avi", "mp4"]
 
-overwrite  = True  # Overwrite files at destination?      (Default: True)
-remove_US  = True  # Remove US from e.g. The.Office.US.*? (Default: True)
-debug      = False # Allow script to crash?               (Default: False)
-no_rename  = False # Prevent file operations?             (Default: False)
+overwrite  = True  # Overwrite files at destination?          (Default: True)
+remove_CC  = True  # Remove country codes from filename ?     (Default: True)
+verbose    = True  # Verbose or silent output?                (Default: True)
+truncate   = True  # Truncate the output to 80 characters?    (Default: True)
+notify     = False # Show popup notifications instead of CLI? (Default: False)
+stay_open  = False # Keep window open after execution?        (Default: False)
+no_rename  = False # Prevent file operations for testing?     (Default: False)
 
-verbose    = True  # Verbose or silent output?            (Default: True)
-stay_open  = False # Keep window open after execution?    (Default: False)
-outputfull = False # Display full or truncated names in output? (Default: False)
+if notify:
+    import pynotify
+    pynotify.init('turbo_sort')
 
 # Don't change anything below unless you know what you're doing!
 months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 months_short = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 quality_attributes = ["1080p", "720p", "xvid"]
 
+# Simple titlecase adapted from titlecase.py by Stuart Colville
+# https://launchpad.net/titlecase.py
+# Using below regex is faster for LARGE batch processing, but slower for smaller batch
+#SMALL = 'a|an|and|as|at|but|by|for|if|in|of|on|or|the|to|v\.|via|vs\.|with'
+#SMALL_WORDS = re.compile(r'^(%s)$' % SMALL, re.I)
+SMALL = ['a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'if', 'in', 'of', 'on', 'or', 'the', 'to', 'v\.', 'via', 'vs\.', 'with']
+COUNTRIES = ['us', 'uk', 'de', 'fr', 'nl', 'br']
+
+def titler(title):
+    """ Joins a string array and emulates titlecase returning the str result """
+    joiner = []
+    if len(title) > 0: # First word always capital
+        if title[0] == "its": # Fix "Its Always Sunny in Philadelphia"
+            joiner.append("It's")
+        else: 
+            joiner.append(chr(ord(title[0][0]) - 32) + title[0][1:]) 
+        
+    for word in title[1:]:
+        #if SMALL_WORDS.search(word): for use with SMALL_WORDS regex
+        if word in SMALL:
+            joiner.append(word)
+        elif remove_CC and len(word) == 2 and word in COUNTRIES:
+            continue
+        else:
+            joiner.append(chr(ord(word[0]) - 32) + word[1:])
+    return ' '.join(joiner)
+
 def display_output(message, path):
-    """ Resize each output line item to be standard 80 characters wide """
-    outputlength = len(message) + len(path)    
-    if not outputfull and outputlength > 80:
-        print message + " ..." + new[outputlength - 76 % outputlength:]
+    """ Resize each output line to be 80 chars wide, OR display popup notification """
+    outputlength = len(message) + len(path) + 1
+    if notify:
+        notice = pynotify.Notification('turbo_sort', message + ' ' + path)
+        notice.show()
     else:
-        print message, path
+        if truncate and outputlength > 80:
+            print message + " ..." + path[outputlength - 76 % outputlength:]
+        else:
+            print message, path
         
 def index_fs(fs):
     """ Populates indices[] with the index of each % in the format string and returns it """
     indices = []
     i = 0
     for char in fs:
-        if char == '%':
-            indices.append(i)
+        if char == '%': indices.append(i)
         i += 1
     return indices
-        
-dateidx = index_fs(dated_fs)
-tvidx   = index_fs(undated_fs)
-movidx  = index_fs(movie_fs)
 
 def format_dated_show():
     """ Replaces dated show format string with available fields """
@@ -76,12 +106,17 @@ def format_dated_show():
         
         index   = dateidx[i]+1     # Index of format string variable
         fstemp  = dated_fs[index:] # Substring of fs starting right after a %, e.g. "t E%0e S%0s" from "%t E0e S%0s"
-        index  += 1                # Move current position past first character of fs substring
+        index  += 1                # Move current position past first character of fstemp
         
-        if fstemp[0] == '0':       # Month/day with leading 0 (e.g. 03 or 12)
+        if fstemp[0] == '0':       # Month/day with leading 0
             if   fstemp[1] == 'm': final.append(zmonth)
             elif fstemp[1] == 'd': final.append(zday)
             index += 1
+        elif fstemp[0] == 't': final.append(title) # Show Name
+        elif fstemp[0] == 'T': final.append(title.upper()) # SHOW NAME
+        elif fstemp[0] == 'm': final.append(month)
+        elif fstemp[0] == 'd': final.append(day)
+        elif fstemp[0] == 'y': final.append(year)
         elif fstemp.startswith('fm'): # March
             final.append(fmonth)
             index += 1
@@ -94,11 +129,6 @@ def format_dated_show():
         elif fstemp.startswith('SM'): # MAR
             final.append(smonth.upper())
             index += 1
-        elif fstemp[0] == 't': final.append(title) # Show Name
-        elif fstemp[0] == 'T': final.append(title.upper()) # SHOW NAME
-        elif fstemp[0] == 'm': final.append(month) # 03
-        elif fstemp[0] == 'd': final.append(day)
-        elif fstemp[0] == 'y': final.append(year) # 2010
     final.append(dated_fs[index:]) # Get the last bits of the format string
     return ''.join(final)
 
@@ -113,7 +143,7 @@ def format_show():
         fstemp  = undated_fs[index:]
         index  += 1
         
-        if fstemp[0] == '0':     # Season/episode with leading 0 (e.g. 06 or 13)
+        if fstemp[0] == '0':     # Season/episode with leading 0
             if   fstemp[1] == 'e': final.append(zepisode)
             elif fstemp[1] == 's': final.append(zseason)
             index += 1
@@ -149,137 +179,153 @@ def format_movie():
 
 def populate_fields(filename):
     """ Parses the filename and populates the fields needed for renaming """
-    global fmonth, smonth, zmonth, month, day, zday, year, quality, season, zseason, episode, zepisode, title, type, ext
+    global fmonth, smonth, zmonth, month, day, zday, year, quality, season, \
+           zseason, episode, zepisode, title, type, extension
     
-    filename = filename.lower()
-
-    ext = filename[filename.rindex('.')+1:]
-    if ext not in extensions:  # Speed boost by checking extension first
-        return None
+    # Get & Check extension first to speed up processing
+    filename  = filename.lower()
+    extension = filename[filename.rindex('.')+1:]
+    if extension not in extensions: return -1
     
-    # Initialize fields
+    # Initialize fields and split the filename by space, underscore, period, hyphen
     fmonth=smonth=zmonth=month=day=zday=year=quality=season=zseason=episode=zepisode=None
     title = []
     type  = "tv"
-    elems = re.split('[ _.-]', filename) # Split the filename by space, underscore, period, hyphen
+    elems = re.split('[ _.-]', filename) 
+    
+    # parse each filename element except the extension
+    for elem in elems[0:-1]:
+        # Check that the element is long enough to contain episode & season info
+        if len(elem) > 2:
+            
+            # sanitize show.[*].*
+            if elem[0] == '[': 
+                closeindex = string.rfind(elem, ']')
+                elem = elem[1:closeindex if closeindex != -1 else len(elem)]
 
-    for elem in elems[0:-1]:        # parse each filename element except the extension
-        if elem[0] == '[': # sanitize show.[*].*
-            closeindex = string.find(elem, ']')
-            if closeindex == -1: closeindex = len(elem)
-            elem = elem[1:closeindex]
-        if elem[0:3] not in ["198", "199", "200", "201", "202", "203"]: # check for year in range 1980-2039
+            # show.s01e01.* / show.s01e01e02.* TODO: Fix multiepisode w/ non-def fs here
             if elem[0] == 's' and elem[1].isdigit():
                 temp     = elem[1:].split('e')
-                zseason  = temp[0]  # show.s01e01.* / show.s01e01e02.*
-                zepisode = temp[1] if len(temp) == 2 else 'E'.join(temp[1:3]) # [temp[1], temp[2]] possible way to fix multi episode?
-                break
-            elif len(elem) > 2:
-                if elem[1] == 'x':  # show.1x01.*
-                    zseason  = "0" + elem[0]
-                    zepisode = elem[2:4]
-                    break
-                elif elem[2] == 'x' and elem[3].isdigit():
-                    zseason  = elem[0:2]
-                    zepisode = elem[3:5]
-                    break           # show.01x01.*
-                elif elem.isdigit():
-                    if len(elem) == 4: # show.0101.*
-                        zseason  = elem[0:2]
-                        zepisode = elem[2:4]
-                    else:           # show.101.*
-                        zseason  = "0" + elem[0]
-                        zepisode = elem[1:3]
-                    break
-            # prevent title from elongating when no year/seas/ep found - assume movie
-            if elem in quality_attributes:
-                quality = elem
-                type = "movie"
-                break
-            title.append(elem)                
-            
-        # determine if it's movie, dated show, or a non-dated show with a year (e.g. Archer.2009.s02e03.*)
-        else:                       
-            i       = elems.index(elem) + 1
-            zseason = ""        # (Probably) no season for this file
-            cur     = elems[i]  # The current element in the array
-
-            # Fix for other quality attributes such as multi, bluray, or proper preceding 1080p, 720p, etc.
-            if elems[i+1] in quality_attributes:
-                type    = "movie"
-                title   = titler(title)
-                year    = elems[i-1]
-                quality = elems[i+1]
-                return 1
-
-            # check for 720p/1080i/etc. to match movie based on the.title.year.quality.*
-            if cur in quality_attributes:
-                type    = "movie"
-                title   = titler(title)
-                year    = elems[i-1]
-                quality = cur
-                return 1
-            
-            # show.2009.s01e01.* break to format normal show
-            elif cur[0] == 's':
-                temp     = cur[1:].split('e')
                 zseason  = temp[0]
                 zepisode = temp[1] if len(temp) == 2 else 'E'.join(temp[1:3])
                 break
             
-            # show named using a date, assume year.month.day format
-            else:
-                print elem
-                title  = titler(title)
-                year   = elems[i-1]
-                zmonth = str(int(cur)-1)
+            # show.1x01.*
+            if elem[1] == 'x':  
+                zseason  = "0" + elem[0]
+                zepisode = elem[2:4]
+                break
+            
+            # show.01x01.*
+            if elem[2] == 'x' and elem[3].isdigit():
+                zseason  = elem[0:2]
+                zepisode = elem[3:5]
+                break            
+
+            # Order of the above parse attempts does not matter, but those below do            
+            # prevent title from elongating when no year/seas/ep found - assume movie
+            if elem in quality_attributes:
+                quality = elem
+                type = "movie"
+                return True
+
+            # found a year, so this is either a movie or dated show
+            if elem[0:2] in ["19", "20"] and elem[2:4].isdigit():
+                i       = elems.index(elem) + 1 # index of the next element
+                zseason = ""        # (Probably) no season for this file
+                elem    = elems[i]  # The new current element in the array
+                year    = elems[i-1]
+                
+                # show.2009.s01e01.* break to format normal show
+                if elem[0] == 's':
+                    temp     = elem[1:].split('e')
+                    zseason  = temp[0]
+                    zepisode = temp[1] if len(temp) == 2 else 'E'.join(temp[1:3])
+                    break
+                
+                # Fix for other quality attributes such as multi, bluray, or proper preceding 1080p, 720p, etc.
+                if elems[i+1] in quality_attributes:
+                    type    = "movie"
+                    quality = elems[i+1]
+                    return True
+
+                # check for 720p/1080i/etc. to match movie based on movie.title.year.quality.*
+                if elem in quality_attributes:
+                    type    = "movie"
+                    quality = elem
+                    return True
+                
+                # show named using a date, assume show.year.month.day format
+                zmonth = str(int(elem)-1)
                 month  = zmonth[-1] if zmonth[0] == '0' else zmonth
-                fmonth = months[int(cur)-1]
-                smonth = months_short[int(cur)-1]
+                fmonth = months[int(elem)-1]
+                smonth = months_short[int(elem)-1]
                 zday   = elems[i+1]
                 day    = zday[-1] if zday[0] == '0' else zday
-                return 1
-    # Show with season and episode detected
-    title = titler(title)
+                return True
+            
+            # show.0101.* / show.101.*
+            if elem.isdigit():
+                if len(elem) == 4:
+                    zseason  = elem[0:2]
+                    zepisode = elem[2:4]
+                else:
+                    zseason  = "0" + elem[0]
+                    zepisode = elem[1:3]
+                break
+
+        # Determined this element to be part of the title so add it
+        title.append(elem)
+        
+    # All above breaks lead here when a show with season and episode is detected
     if zseason and zepisode:
         season  = zseason[-1] if zseason[0] == '0' else zseason
         episode = zepisode[-1] if zepisode[0] == '0' else zepisode
     else:
         type = "movie" # Show detected w/ episode and season, but no ep/s found so try movie
-    return 1
-    
-def titler(title):
-    """ Joins a string array and emulates titlecase returning the str result """
-    title = string.capwords(' '.join(title))
-    if remove_US: title = title.replace("Us", "").replace("(us)", "")
-    return title.replace("In", "in").replace("And", "and").replace("Its", "It's").strip()
+    return True
 
+def rename(root, old, new):
+    """ Handles special cases for moving the files to their sorted locations
+        Thanks to Saad Javed for fixing file permission issues, and a bug
+        where the sourcedir was being removed if empty"""
+    # -Creates the destination folder to move to if it doesn't exist
+    # -Moves the file to the new location
+    # -Removes the directory that old was in if it is empty and not sourcedir
+    if not no_rename:
+        if not os.path.exists(os.path.dirname(new)):
+            os.makedirs(os.path.dirname(new))
+        old = os.path.join(root, old)
+        shutil.move(old, new)
+        if (root != sourcedir and not os.listdir(root)):
+            shutil.rmtree(root)
+
+dateidx = index_fs(dated_fs)
+tvidx   = index_fs(undated_fs)
+movidx  = index_fs(movie_fs)
+
+# Attempt to process all the files in sourcedir and its subdirectories
 for root, dirs, files in os.walk(sourcedir):
-    for old in files:
-        # Debug mode allows script to crash
-        if debug: new = populate_fields(old)
-        else:
-            try: new = populate_fields(old)
-            except:
-                if verbose: display_output("Failed to process ", old)
-                
-        # If file could be parsed, generate the new filename and rename it
-        if new:
+    for old_filename in files:
+        success = populate_fields(old_filename)
+        if success == True:
+            title = titler(title)
             if type == "movie":
-                new = os.path.join(moviedest, format_movie())
+                new_path = os.path.join(moviedest, format_movie())
             else:
-                new = os.path.join(tvdest, format_show() if episode else format_dated_show())
-            new = "%s.%s" % (new, ext)
+                new_path = os.path.join(tvdest, format_show() if episode else format_dated_show())
+            new_path = "%s.%s" % (new_path, extension)
 
-            if os.path.exists(new):
+            if os.path.exists(new_path):
                 if overwrite:
-                    if not no_rename:
-                        os.remove(new)
-                        os.renames(os.path.join(root, old), new)
-                    if verbose: display_output("Overwriting", new)
-                else: display_output("File already exists:", new)
+                    os.remove(new_path)
+                    rename(root, old_filename, new_path)
+                    if verbose: display_output("Overwriting:", new_path)
+                else: display_output("File already exists:", new_path)
             else:
-                if not no_rename: os.renames(os.path.join(root, old), new)
-                if verbose: display_output("Moved", new)
-        
+                rename(root, old_filename, new_path)
+                if verbose: display_output("Moved:", new_path)
+        elif success == None:
+            if verbose: display_output("Failed to process:", old_filename)
+            
 if stay_open: raw_input("\nFiles processed successfully, press Enter to exit.")
