@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# turbo_sort v2.2
+# turbo_sort v2.2.1
 # This program sorts downloaded TV show and movie files
 # Copyright (C) 2012 Michael Riha
 #
@@ -40,14 +40,18 @@ notify     = False # Show popup notifications instead of CLI? (Default: False)
 stay_open  = False # Keep window open after execution?        (Default: False)
 no_rename  = False # Prevent file operations for testing?     (Default: False)
 
-if notify:
-    import pynotify
-    pynotify.init('turbo_sort')
-
 # Don't change anything below unless you know what you're doing!
+if notify:
+    try:
+        import pynotify
+        pynotify.init('turbo-sort')
+    except:
+        notify = False
+        print("\nYou must have the pynotify library installed to use popup notifications!\n")
+
 months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 months_short = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-quality_attributes = ["1080p", "720p", "xvid"]
+quality_attributes = ["1080p", "720p", "480p", "xvid"]
 
 # Simple titlecase adapted from titlecase.py by Stuart Colville
 # https://launchpad.net/titlecase.py
@@ -63,8 +67,8 @@ def titler(title):
     if len(title) > 0: # First word always capital
         if title[0] == "its": # Fix "Its Always Sunny in Philadelphia"
             joiner.append("It's")
-        else: 
-            joiner.append(chr(ord(title[0][0]) - 32) + title[0][1:]) 
+        else:
+            joiner.append(string.upper(title[0][0]) + title[0][1:])
         
     for word in title[1:]:
         #if SMALL_WORDS.search(word): for use with SMALL_WORDS regex
@@ -73,9 +77,10 @@ def titler(title):
         elif remove_CC and len(word) == 2 and word in COUNTRIES:
             continue
         else:
-            joiner.append(chr(ord(word[0]) - 32) + word[1:])
+            joiner.append(string.upper(word[0]) + word[1:])
     return ' '.join(joiner)
 
+sep = " ..."
 def display_output(message, path):
     """ Resize each output line to be 80 chars wide, OR display popup notification """
     outputlength = len(message) + len(path) + 1
@@ -84,9 +89,9 @@ def display_output(message, path):
         notice.show()
     else:
         if truncate and outputlength > 80:
-            print message + " ..." + path[outputlength - 76 % outputlength:]
+            print(''.join([message, sep, path[outputlength - 81 + len(sep):]]))
         else:
-            print message, path
+            print(' '.join([message, path]))
         
 def index_fs(fs):
     """ Populates indices[] with the index of each % in the format string and returns it """
@@ -161,7 +166,7 @@ def format_movie():
 
     # If the fs expects an element that wasn't found, just return the title... crappy input
     if "%y" in movie_fs and not year or "%q" in movie_fs and not quality:
-        return title
+        return title[title.index(' ')+1:]
     
     for i in range(len(movidx)):
         final.append(movie_fs[index:movidx[i]])
@@ -198,9 +203,12 @@ def populate_fields(filename):
         # Check that the element is long enough to contain episode & season info
         if len(elem) > 2:
             
-            # sanitize show.[*].*
+            # sanitize show.[*].* and show.(*).*
             if elem[0] == '[': 
                 closeindex = string.rfind(elem, ']')
+                elem = elem[1:closeindex if closeindex != -1 else len(elem)]
+            elif elem[0] == '(':
+                closeindex = string.rfind(elem, ')')
                 elem = elem[1:closeindex if closeindex != -1 else len(elem)]
 
             # show.s01e01.* / show.s01e01e02.* TODO: Fix multiepisode w/ non-def fs here
@@ -242,6 +250,11 @@ def populate_fields(filename):
                     zseason  = temp[0]
                     zepisode = temp[1] if len(temp) == 2 else 'E'.join(temp[1:3])
                     break
+                
+                # Movie without quality attributes
+                if len(elems) == i + 1:
+                    type = "movie"
+                    return True
                 
                 # Fix for other quality attributes such as multi, bluray, or proper preceding 1080p, 720p, etc.
                 if elems[i+1] in quality_attributes:
@@ -287,19 +300,17 @@ def populate_fields(filename):
 
 def rename(root, old, new):
     """ Handles special cases for moving the files to their sorted locations
-        Thanks to Saad Javed for fixing file permission issues, and a bug
-        where the sourcedir was being removed if empty"""
-    # -Creates the destination folder to move to if it doesn't exist
-    # -Moves the file to the new location
-    # -Removes the directory that old was in if it is empty and not sourcedir
+        It creates any necessary directories to place the new file, moves it,
+        and then removes the root directory the file was in unless it's sourcedir
+    """
     if not no_rename:
         if not os.path.exists(os.path.dirname(new)):
             os.makedirs(os.path.dirname(new))
-        old = os.path.join(root, old)
-        shutil.move(old, new)
+        shutil.move(os.path.join(root, old), new)
         if (root != sourcedir and not os.listdir(root)):
             shutil.rmtree(root)
-
+            
+# Get the indices of the % in each format string for replacement
 dateidx = index_fs(dated_fs)
 tvidx   = index_fs(undated_fs)
 movidx  = index_fs(movie_fs)
@@ -307,7 +318,10 @@ movidx  = index_fs(movie_fs)
 # Attempt to process all the files in sourcedir and its subdirectories
 for root, dirs, files in os.walk(sourcedir):
     for old_filename in files:
-        success = populate_fields(old_filename)
+        try:
+            success = populate_fields(old_filename)
+        except:
+            display_output("*SCRIPT CRASHED - PLEASE REPORT THIS BUG*:", old_filename)
         if success == True:
             title = titler(title)
             if type == "movie":

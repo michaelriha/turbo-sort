@@ -2,6 +2,16 @@ TODO: Fix separated Season/Episode like "The Show S02 E05.mkv"
 TODO: GUI configuration tool
 TODO: Fix multi-episode rename for nondefault format strings
 --------------------------
+Version 2.2.1 - 2/3/2013
+--------------------------
+Fixed movie rename in format "scenegroup.the.movie.title.quality.ext" (e.g. ctf-jack.and.jill.xvid.avi -> Jack and Jill.avi)
+
+Re-added catch-all try statement to stop script from crashing on unexpected strings. Asks user to report bugged filename.
+
+Oops -- fixed print issue for python 3 with parens
+
+No longer crashes if pynotify could not be found while it is enabled
+
 Version 2.2.0 - 11/15/2012
 --------------------------
 Refactored code and improved comments & readability
