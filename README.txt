@@ -1,23 +1,37 @@
-You will need to open turbo_sort.py in a text editor and change the variables at the start of the document.
+This is a very fast parsing script for downloaded TV shows and movies. It will use scene-standard naming conventions (and a lot of nonstandard ones, too) to match TV shows and movies and rename / move them as you like.
 
-Below is a brief description of what each option does. After you've changed them to your preferences, simply run turbo_sort.py in your favorite python interpreter and watch the magic happen.
+My script now supports format strings similar to SABnzbd! It should also work on all platforms that have a Python interpreter available, though you will need to change the directory structure of the format strings from using \\ to / for it to work on UNIX.
+
+Since this script is written in python, you will need a python interpreter installed on your system. If you do not have one, you can get one from http://python.org/.
+Getting Started
+
+ 1. Download archive
+ 2. Extract somewhere
+ 3. Open turbo_sort.py in a text editor
+ 4. Edit the variables at the top of the script per the README or see below for what the options do.
+ 5. Save & Run the script
+
+Options to Consider
 
 +---------+
 | General |
 +---------+
 
 tvdest
-   TV shows will be moved to "tvdest\Show Name\Season #\Show Name S0# E##.ext"
-			  OR "tvdest\Show Name\Show Name March 13 2011.ext"    by default
+   TV shows will be moved to tvdest/undated_fs or tvdest/dated_fs
+
+   By default these locations are "tvdest\Show Name\Season #\Show Name S## E##.ext"
+                              and "      ...       \Show Name Mar 03 2012.ext"
 
 moviedest
-   Movies will be moved to "moviedest\Movie Name (Year).ext" by default
+   Movies will be moved to moviedest\movie_fs
+   By default this location is "moviedest\Movie Name (Year).ext"
 
 sourcedir
-   the directory the script will search for files ending in ext in
+   the directory the script will search for files ending in an extension specified in extensions
 
 extensions
-   specify what extensions to match. ex. ["mkv", "avi", "myextension", "mp4"]
+   specify which extensions to match. ex. ["mkv", "avi", "myextension", "mp4"]
 
 ----------------------------------------------------------------------------------------
 
@@ -35,7 +49,7 @@ truncate
 
 notify
    Set to true to enable popup notifications instead of shell output. This option supersedes truncate.
-   YOU MUST INSTALL PYNOTIFY TO USE THIS FUNCTION!! http://home.gna.org/py-notify/	
+   YOU MUST INSTALL PYNOTIFY TO USE THIS FUNCTION!! http://home.gna.org/py-notify/      
 
 stay_open
    Set to True to keep the shell window open after script has finished execution
@@ -73,3 +87,19 @@ movie_fs
    Format string for movies. Specific options include:
      %y  - Year (e.g. 2011)
      %q  - Quality (e.g. 1080p)
+
++----------+
+| Examples |
++----------+
+undated_fs:
+    "%t/Season %s/%t S%0s E%0e"     - The Office/Season 6/The Office S06 E03.mkv
+    "Shows/%T Season %s/%t S%s E%e" - Shows/THE OFFICE Season 6/The Office S6 E3.mkv
+
+dated_fs:
+    "%t/%t %sm %0d %y"      - The Daily Show/The Daily Show Mar 05 2012.mkv
+    "%t/%y/%fm/%t %y-%m-%d" - The Daily Show/2012/March/The Daily Show 2012-3-5.mkv
+
+movie_fs:
+    "%t (%y)"  - Pulp Fiction (1994).mkv
+    "%q/%t %y" - 1080p/Pulp Fiction 1994.mkv
+    "%y/%t"    - 1994/Pulp Fiction.mkv
