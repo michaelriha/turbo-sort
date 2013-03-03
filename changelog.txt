@@ -2,54 +2,41 @@ TODO: Fix separated Season/Episode like "The Show S02 E05.mkv"
 TODO: GUI configuration tool
 TODO: Fix multi-episode rename for nondefault format strings
 --------------------------
+Version 2.2.2 - 2/10/2013
+--------------------------
+Added "min_size" feature to ignore files below a threshhold
+Increased speed by replacing string.join() with +=
+Removed redundant code
+
 Version 2.2.1 - 2/3/2013
 --------------------------
 Fixed movie rename in format "scenegroup.the.movie.title.quality.ext" (e.g. ctf-jack.and.jill.xvid.avi -> Jack and Jill.avi)
-
-Re-added catch-all try statement to stop script from crashing on unexpected strings. Asks user to report bugged filename.
-
+Re-added catch-all try statement to stop script from crashing on unexpected strings.
 Oops -- fixed print issue for python 3 with parens
-
 No longer crashes if pynotify could not be found while it is enabled
 
 Version 2.2.0 - 11/15/2012
 --------------------------
 Refactored code and improved comments & readability
-
 Fixed rename on files like "The Show - S02E05.mkv"
-
 Fixed bug where sourcedir is deleted if it is empty
-
 New titlecaser!! Covers more cases but should run as fast
-
 Fixed permissions error while copying between filesystems - Thanks to Saad Javed
-
 Added popup notifications via pynotify library - Thanks to Saad Javed
 
 Version 2.1.0 - 5/9/2012
 ------------------------
 Adds %T (TITLE), %sm (Mar), %SM (MAR), and %FM (MARCH) format strings
-
 Fixed really stupid overwrite 'bug'
-
 Added stay_open and no_rename fields in addition to debug. Stay_open prompts before exit, and no_rename makes the script print output without sorting files (no file operations at all -- mainly for test)
-
 Added an exception where the file is thought to be a non-dated show with a year, but has no season. Will now detect these files as movies.
-
 Detects irregularly spaced quality from title in movies (e.g. Movie.Title.2007.LIMITED.1080p now works where before only Movie.Title.2007.1080p did)
-
 Allows rename of movies without quality or year attributes, but WILL NOT BE ABLE TO FORMAT THE FILENAME, ONLY MOVES THE FILE TO MOVIE DIRECTORY. (e.g. "ctf.jack.and.jill.xvid.avi" -> dest\Ctf Jack and Jill.avi)
-
 Added mp4 as default extension since the Scene adopted x264 for sd rips.
-
 Improved bracket sanitization to check for mismatched right bracket.
-
 Improve output by dynamically altering the size of the path displayed to fit on a line
-
 Added outputfull field to prevent dynamic output size.
-
 Removed redundant calls to index_fs()
-
 Changelog in descending version order
 
 Version 2.0.0

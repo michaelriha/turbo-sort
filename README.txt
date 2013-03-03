@@ -11,7 +11,7 @@ Getting Started
  4. Edit the variables at the top of the script per the README or see below for what the options do.
  5. Save & Run the script
 
-Options to Consider
+Options to Consider:
 
 +---------+
 | General |
@@ -33,6 +33,9 @@ sourcedir
 extensions
    specify which extensions to match. ex. ["mkv", "avi", "myextension", "mp4"]
 
+min_size
+   Files below this size, in megabytes (MB) will be ignored
+
 ----------------------------------------------------------------------------------------
 
 overwrite
@@ -48,7 +51,7 @@ truncate
    Set to True to enable 80-char wide output truncation
 
 notify
-   Set to true to enable popup notifications instead of shell output. This option supersedes truncate.
+   Set to true to enable popup notifications instead of shell output. This option supersedes truncate and verbose.
    YOU MUST INSTALL PYNOTIFY TO USE THIS FUNCTION!! http://home.gna.org/py-notify/      
 
 stay_open
