@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# turbo_sort v2.2.2
+# turbo_sort v2.2.4
 # This program sorts downloaded TV show and movie files
 # Copyright (C) 2012-2013 Michael Riha
 #
@@ -29,17 +29,23 @@ movie_fs   = "%t (%y)"
 
 tvdest     = "D:\\Videos\\TV"
 moviedest  = "D:\\Videos\\Movies"
-sourcedir  = "D:\\Downloads\\Usenet"
-extensions = ["mkv", "avi", "mp4"]
+sourcedir  = "D:\\Downloads\\Usenet" 
+extensions = ["mkv", "avi", "mp4", "ts"]
+SATELLITES = ["srt", "srr"]
 min_size   = 100   # in MB / Megabytes (Default: 100MB)
 
 overwrite  = True  # Overwrite files at destination?          (Default: True)
 remove_CC  = True  # Remove country codes from filename?      (Default: True)
 verbose    = True  # Show output in command line interface?   (Default: True)
 truncate   = True  # Truncate the output to 80 characters?    (Default: True)
+satellites = True  # Move related files such as subtitles?    (Default: True)
+cleanup    = True  # Cleanup after moving files?              (Default: True)
+clean_mode = 2     # Cleanup mode 1 or 2.                     (Default: 1)
+                   # 1 is "safe cleanup" 2 removes the whole directory after something is moved. 
 notify     = False # Show popup notifications instead of CLI? (Default: False)
 stay_open  = False # Keep window open after execution?        (Default: False)
 no_rename  = False # Prevent file operations for testing?     (Default: False)
+remove_src = True  # Allow sourcedir to be removed during cleanup? (Default: False)
 
 # Don't change anything below unless you know what you're doing!
 if notify:
@@ -50,66 +56,77 @@ if notify:
         notify = False
         print("\nYou must have the pynotify library installed to use popup notifications!\n")
 
-min_size = min_size * 1024 * 1024
+min_size <<= 20
 months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 months_short = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-quality_attributes = ["1080p", "720p", "480p", "xvid", "1080"]
+quality_attributes = ["1080p", "720p", "480p", "xvid", "1080i", "1080"]
+ignore_attributes = ["hdtv", "dts"]
+consolesize = 80
 
-# Simple titlecase adapted from titlecase.py by Stuart Colville
-# https://launchpad.net/titlecase.py
-# Using below regex is faster for LARGE batch processing, but slower for smaller batch
-#SMALL = 'a|an|and|as|at|but|by|for|if|in|of|on|or|the|to|v\.|via|vs\.|with'
-#SMALL_WORDS = re.compile(r'^(%s)$' % SMALL, re.I)
-SMALL = ['a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'if', 'in', 'of', 'on', 'or', 'the', 'to', 'v\.', 'via', 'vs\.', 'with']
-COUNTRIES = ['us', 'uk', 'de', 'fr', 'nl', 'br']
+#tvdest     = "D:\\Documents\\Scripts\\Script test files\\tvdest"
+#moviedest  = "D:\\Documents\\Scripts\\Script test files\\moviedest"
+#sourcedir  = "D:\\Documents\\Scripts\\Script test files\\sourcedir"
 
-def titler(title):
-    """ Joins a string array and emulates titlecase returning the str result """
-    result = ""
-    if len(title) > 0: # First word always capital
-        if title[0] == "its": # Fix "Its Always Sunny in Philadelphia"
-            result += "It's "
-        else:
-            result += string.upper(title[0][0])
-            result += title[0][1:]      
-            result += " "
-        
-    for word in title[1:]:
-        #if SMALL_WORDS.search(word): for use with SMALL_WORDS regex
-        if word in SMALL:
-            result += word
-            result += " "
-        elif remove_CC and len(word) == 2 and word in COUNTRIES:
-            continue
-        else:
-            result += string.upper(word[0])
-            result += word[1:]
-            result += " "
-    return result[:-1]
+def cleanup(base, dest):
+    """ Moves satellite files such as subtitles that are associated with base
+        and stored in root to the correct dest. associated files that are not
+        in SATELLITES will be deleted.
+        base/dest: file paths
+    """
+    root = os.path.dirname(base) 
+    base = os.path.basename(base[:base.rfind('.')]).lower()
+    for f in os.listdir(root):
+        if f.lower().startswith(base):
+            f_ext = f[f.rfind('.')+1:]
+            if satellites and f_ext in SATELLITES:
+                dest = dest[:dest.rfind('.')+1] + f_ext
+                show("-->Satellite:", dest)
+                rename(os.path.join(root, f), dest)
+            elif cleanup and clean_mode == 1 and f_ext not in SATELLITES:
+                if not no_rename:
+                    os.remove(os.path.join(root, f))
+                show("Removed:", f)
 
-sep = " ..."
-def show(message, path):
-    """ Resize each output line to be 80 chars wide, OR show popup notification """
-    if notify:
-        notice = pynotify.Notification('turbo_sort', message + ' ' + path)
-        notice.show()
-    else:
-        if verbose:
-            outputlength = len(message) + len(path)
-            if truncate and outputlength > 80:
-                print(message + sep + path[outputlength - 80 + len(sep):])
-            else:
-                print(message + ' ' + path)
-        
-def index_fs(fs):
-    """ Populates indices[] with the index of each % in the format string and returns it """
-    indices = []
-    i = 0
-    for char in fs:
-        if char == '%': indices.append(i)
-        i += 1
-    return indices
-
+def cleanup_brute():
+    """ Use the "bruteforce cleanup" approach to remove directories that were modified
+        Remove all folders that were modified by the script that do not contain "important" files
+        (important = matching extension and size >= min_size)
+    """
+    for dir in dir_cleanup_queue:
+        if os.path.exists(dir):
+            delete = True
+            for root, dirs, files in os.walk(dir):
+                for f in files:
+                    if f[f.rfind('.')+1:] in extensions and os.path.getsize(os.path.join(root, f)) >= min_size:
+                        delete = False
+            if delete:
+                try:
+                    if not no_rename:
+                        shutil.rmtree(dir)
+                    show("Deleted:", dir)
+                except Exception as e:
+                    show("Failed to delete:", dir)
+                    print(e)
+            
+def cleanup_safe():
+    """ Use the "safe cleanup" approach to remove newly emptied directories
+        Removes only files that have the same prefix as moved files
+    """
+    for dir in dir_cleanup_queue:
+        if os.path.exists(dir) and not os.listdir(dir):
+            try:
+                shutil.rmtree(dir)
+                show("Deleted:", dir)
+            except Exception as e:
+                show("Failed to delete:", dir)
+                print(e)
+                    
+def finalize_fields():
+    """ Perform a few functions so the formatter gets the right input """
+    global special, title
+    title = titler(title)
+    special = titler(special)
+    
 def format_dated_show():
     """ Replaces dated show format string with available fields """
     index = 0
@@ -129,6 +146,7 @@ def format_dated_show():
         elif fstemp[0] == 'm': final += month
         elif fstemp[0] == 'd': final += day
         elif fstemp[0] == 'y': final += year
+        elif fstemp[0] == 'o': final += old_filename[:old_filename.rfind('.')]
         elif fstemp.startswith('fm'): # March
             final += fmonth
             index += 1
@@ -162,6 +180,7 @@ def format_show():
         elif fstemp[0] == 's': final += season
         elif fstemp[0] == 't': final += title
         elif fstemp[0] == 'T': final += title.upper()
+        elif fstemp[0] == 'o': final += old_filename[:old_filename.rfind('.')]
     final += undated_fs[index:]
     return final
   
@@ -169,13 +188,9 @@ def format_movie():
     """ Replaces movie format string with available fields """
     index = 0
     final = ""
-
-    # Make assumption that this movie was named scenegroup-movie.title.quality.ext
-    if quality and not year:
-        return title[title.index(' ')+1:]
     
     # If the fs expects an element that wasn't found, just return the title... crappy input
-    elif "%y" in movie_fs and not year or "%q" in movie_fs and not quality:
+    if "%y" in movie_fs and not year or "%q" in movie_fs and not quality:
         return title
     
     for i in range(len(movidx)):
@@ -188,22 +203,37 @@ def format_movie():
         elif fstemp[0] == 'T': final += title.upper()
         elif fstemp[0] == 'y': final += year
         elif fstemp[0] == 'q': final += quality
+        elif fstemp[0] == 'o': final += old_filename[:old_filename.rfind('.')]
     final += movie_fs[index:]
     return final
+
+def index_fs(fs):
+    """ Returns int[] with the indices of each % in the format string fs """
+    indices = []
+    i = 0
+    for char in fs:
+        if char == '%': indices.append(i)
+        i += 1
+    return indices
 
 def populate_fields(filename):
     """ Parses the filename and populates the fields needed for renaming """
     global fmonth, smonth, zmonth, month, day, zday, year, quality, season, \
-           zseason, episode, zepisode, title, type, extension
+           zseason, episode, zepisode, title, type, extension, special
     
     # Get & Check extension first to speed up processing
     filename  = filename.lower()
-    extension = filename[filename.rindex('.')+1:]
+    extension = filename[filename.rfind('.')+1:]
     if extension not in extensions: return False
+
+    # remove scenegroup from scenegroup-movie.title.*
+    hyph = string.find(filename, '-')
+    if hyph < 10:
+        filename = filename[hyph + 1:]
     
     # Initialize fields and split the filename by space, underscore, period, hyphen
     fmonth=smonth=zmonth=month=day=zday=year=quality=season=zseason=episode=zepisode=None
-    title = []
+    title, special = [], []
     type  = "tv"
     elems = re.split('[ _.-]', filename) 
     
@@ -219,7 +249,7 @@ def populate_fields(filename):
             elif elem[0] == '(':
                 closeindex = string.rfind(elem, ')')
                 elem       = elem[1:closeindex if closeindex != -1 else len(elem)]
-
+                
             # show.s01e01.* / show.s01e01e02.* TODO: Fix multiepisode w/ non-def fs here
             if elem[0] == 's' and elem[1].isdigit():
                 temp     = elem[1:].split('e')
@@ -265,17 +295,19 @@ def populate_fields(filename):
                     type = "movie"
                     return True
                 
-                # Fix for other quality attributes such as multi, bluray, or proper preceding 1080p, 720p, etc.
-                if elems[i+1] in quality_attributes:
-                    type    = "movie"
-                    quality = elems[i+1]
-                    return True
-
-                # check for 720p/1080i/etc. to match movie based on movie.title.year.quality.*
-                if elem in quality_attributes:
-                    type    = "movie"
-                    quality = elem
-                    return True
+                # Get special attributes (e.g. multi, bluray, extended cut) and quality
+                # also try to match movie based on movie.title.year.quality.* or
+                #                         movie.title.year.something.here.quality.*
+                special = []
+                for j in range(i, len(elems) - 1):
+                    if elems[j] in quality_attributes:
+                        if len(elems[i]) > 2: # elem after year is not month/day
+                            type    = "movie"
+                            quality = elems[j]
+                            return True
+                        break
+                    if not elems[j].isdigit() and elems[j] not in file_cleanup_queue:
+                        special.append(elems[j])
                 
                 # show named using a date, assume show.year.month.day format
                 zmonth = str(int(elem)-1)
@@ -297,7 +329,8 @@ def populate_fields(filename):
                 break
 
         # Determined this element to be part of the title so add it
-        title.append(elem)
+        if elem not in file_cleanup_queue:
+            title.append(elem)
         
     # All above breaks lead here when a show with season and episode is detected
     if zseason and zepisode:
@@ -313,16 +346,69 @@ def rename(old, new):
         and then removes the root directory the file was in unless it's sourcedir
     """
     if not no_rename:
-        if not os.path.exists(os.path.dirname(new)):
-            os.makedirs(os.path.dirname(new))
-        shutil.move(old, new)
-        if (root != sourcedir and not os.listdir(root)):
-            shutil.rmtree(root)
+        if os.path.exists(new):
+            if overwrite:
+                os.remove(new)
+                shutil.move(old, new)
+                show("Overwrote:", new)
+            else:
+                show("File already exists:", new_path)
+        else:
+            if not os.path.exists(os.path.dirname(new)):
+                os.makedirs(os.path.dirname(new))
+            shutil.move(old, new)
+            show("Moved:", new_path)
+        file_cleanup_queue.append([old, new])
+
+sep = " ..."
+offset = consolesize - len(sep)
+def show(message, path):
+    """ Resize each output line to be consolesize chars wide, OR show popup notification """
+    if notify:
+        notice = pynotify.Notification('turbo_sort', message + ' ' + path)
+        notice.show()
+    elif verbose:
+        outputlength = len(message) + len(path)
+        if truncate and outputlength >= consolesize:
+            print(message + sep + path[outputlength - offset:])
+        else:
+            print(message + ' ' + path)
+
+# Simple titlecase adapted from titlecase.py by Stuart Colville https://launchpad.net/titlecase.py
+SMALL = ['a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'if', 'in', 'of', 'on', 'or', 'the', 'to', 'v', 'via', 'vs', 'with']
+COUNTRIES = ['us', 'uk', 'de', 'fr', 'nl', 'br']
+
+def titler(title):
+    """ Joins a string array and emulates titlecase returning the str result """
+    result = ""
+    if len(title) > 0: # First word always capital
+        if title[0] == "its": # Fix "Its Always Sunny in Philadelphia"
+            result += "It's "
+        else:
+            result += string.upper(title[0][0])
+            result += title[0][1:]
+            result += " "
+        
+    for word in title[1:]:
+        if word in SMALL:
+            result += word
+            result += " "
+        elif remove_CC and len(word) == 2 and word in COUNTRIES:
+            continue
+        else:
+            result += string.upper(word[0])
+            result += word[1:]
+            result += " "
+    return result[:-1]        
             
 # Get the indices of the % in each format string for replacement
 dateidx = index_fs(dated_fs)
 tvidx   = index_fs(undated_fs)
 movidx  = index_fs(movie_fs)
+
+# Keep track of directories and files to potentially remove after initial renaming
+dir_cleanup_queue = set()
+file_cleanup_queue = list()
 
 # Attempt to process all the files in sourcedir and its subdirectories
 for root, dirs, files in os.walk(sourcedir):
@@ -330,24 +416,35 @@ for root, dirs, files in os.walk(sourcedir):
         try:
             old_path = os.path.join(root, old_filename)
             if os.path.getsize(old_path) >= min_size and populate_fields(old_filename):
-                title = titler(title)
-                if type == "movie":
-                    new_path = os.path.join(moviedest, format_movie())
-                else:
-                    new_path = os.path.join(tvdest, format_show() if episode else format_dated_show())
-                new_path += '.'
-                new_path += extension
-                
-                if os.path.exists(new_path):
-                    if overwrite:
-                        os.remove(new_path)
-                        rename(old_path, new_path)
-                        show("Overwriting:", new_path)
-                    else: show("File already exists:", new_path)
-                else:
-                    rename(old_path, new_path)
-                    show("Moved:", new_path)
-        except Exception:
-            show("*FAILED TO PROCESS*:", old_filename)
+                finalize_fields()
 
+                if root != sourcedir or remove_src:
+                    dir_cleanup_queue.add(root)
+                    
+                new_path = os.path.join(moviedest, format_movie()) if type == "movie" \
+                      else os.path.join(tvdest, format_show() if episode else format_dated_show())
+                new_path += '.' + extension
+                      
+                rename(old_path, new_path)
+                
+        except WindowsError as e:
+            show("Windows Error:", e.strerror)
+            print(e)
+        except Exception as e:
+            show("*FAILED TO PROCESS*:", old_filename)
+            print(e)
+            
+# Cleanup / handle satellites, then remove directories that are now empty
+if cleanup or satellites:
+    for q in file_cleanup_queue:
+        try:
+            cleanup(q[0], q[1])
+        except:
+            pass # sometimes gets files like *.*; easier to just skip when it happens
+    if cleanup:
+        if clean_mode == 1:
+            cleanup_safe()
+        elif clean_mode == 2:
+            cleanup_brute()
+            
 if stay_open: raw_input("\nFiles processed successfully, press Enter to exit.")

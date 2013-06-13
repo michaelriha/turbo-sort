@@ -1,7 +1,18 @@
-TODO: Fix separated Season/Episode like "The Show S02 E05.mkv" 
-TODO: GUI configuration tool
-TODO: Fix multi-episode rename for nondefault format strings
 --------------------------
+Version 2.2.4 - 6/8/2013
+--------------------------
+Added clean_mode option to select between "safe" and "bruteforce" cleanup methods. Safe cleanup removes files with similar names and then attempts to remove emptied folders, while bruteforce deletes folders regardless of their content unless there is another video file to move.
+Added remove_src option to allow sourcedir to be removed during cleanup.
+Removed redundant code and abstracted methods.
+
+Version 2.2.3 - 6/4/2013
+--------------------------
+Added cleanup feature -- removes files with same prefix after a file is renamed (e.g. removes "show.par2" if "show.mkv' was moved) and removes empty folders afterward
+Added "satellites" feature to move files such as subtitles that are associated with a renamed file (works like cleanup)
+Improved 'special attributes' detection for movies (Fixed Argo.2012.extended.cut.1080p.*) 
+Now acquires guest details (or misc. info) for Daily Show / Colbert Report and many others. (currently unused)
+Added %o format string variable -- returns original filename
+
 Version 2.2.2 - 2/10/2013
 --------------------------
 Added "min_size" feature to ignore files below a threshhold
