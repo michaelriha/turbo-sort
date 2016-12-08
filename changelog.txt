@@ -1,4 +1,16 @@
+Version 2.3.0 - 12/7/2016
 --------------------------
+Added supported for hashed filenames. The directory name is used instead, which a decent usenet client
+should have in parseable plaintext. 
+
+Version 2.2.6 - 6/7/2015
+--------------------------
+Fixed a bug on filenames containing multiple separators, such as Show Name - S01 E04 - foo bar.mkv
+
+Version 2.2.5 - 5/28/2014
+--------------------------
+No longer uses a deprecated string function for compatibility with python 3.x
+
 Version 2.2.4 - 6/8/2013
 --------------------------
 Added clean_mode option to select between "safe" and "bruteforce" cleanup methods. Safe cleanup removes files with similar names and then attempts to remove emptied folders, while bruteforce deletes folders regardless of their content unless there is another video file to move.

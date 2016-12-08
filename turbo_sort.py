@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# turbo_sort v2.2.4
+# turbo_sort v2.3
 # This program sorts downloaded TV show and movie files
 # Copyright (C) 2012-2013 Michael Riha
 #
@@ -27,25 +27,25 @@ undated_fs = "%t\\Season %s\\%t S%0s E%0e"
 dated_fs   = "%t\\%t %sm %0d %y"
 movie_fs   = "%t (%y)"
 
-tvdest     = "D:\\Videos\\TV"
-moviedest  = "D:\\Videos\\Movies"
-sourcedir  = "D:\\Downloads\\Usenet" 
+tvdest     = "C:\\SORTED\\TV"
+moviedest  = "C:\\SORTED\\Movies"
+sourcedir  = "C:\\Users\\Michael\\AppData\\Local\\Alt.Binz\\download" 
 extensions = ["mkv", "avi", "mp4", "ts"]
 SATELLITES = ["srt", "srr"]
 min_size   = 100   # in MB / Megabytes (Default: 100MB)
 
-overwrite  = True  # Overwrite files at destination?          (Default: True)
+overwrite  = False # Overwrite files at destination?          (Default: True)
 remove_CC  = True  # Remove country codes from filename?      (Default: True)
 verbose    = True  # Show output in command line interface?   (Default: True)
 truncate   = True  # Truncate the output to 80 characters?    (Default: True)
 satellites = True  # Move related files such as subtitles?    (Default: True)
 cleanup    = True  # Cleanup after moving files?              (Default: True)
-clean_mode = 2     # Cleanup mode 1 or 2.                     (Default: 1)
+clean_mode = 1     # Cleanup mode 1 or 2.                     (Default: 1)
                    # 1 is "safe cleanup" 2 removes the whole directory after something is moved. 
 notify     = False # Show popup notifications instead of CLI? (Default: False)
 stay_open  = False # Keep window open after execution?        (Default: False)
 no_rename  = False # Prevent file operations for testing?     (Default: False)
-remove_src = True  # Allow sourcedir to be removed during cleanup? (Default: False)
+remove_src = False # Allow sourcedir to be removed during cleanup? (Default: False)
 
 # Don't change anything below unless you know what you're doing!
 if notify:
@@ -62,6 +62,8 @@ months_short = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 quality_attributes = ["1080p", "720p", "480p", "xvid", "1080i", "1080"]
 ignore_attributes = ["hdtv", "dts"]
 consolesize = 80
+
+hexaPattern = re.compile('[0-9a-fA-F]+')
 
 #tvdest     = "D:\\Documents\\Scripts\\Script test files\\tvdest"
 #moviedest  = "D:\\Documents\\Scripts\\Script test files\\moviedest"
@@ -216,18 +218,23 @@ def index_fs(fs):
         i += 1
     return indices
 
-def populate_fields(filename):
+def populate_fields(filepath):
     """ Parses the filename and populates the fields needed for renaming """
     global fmonth, smonth, zmonth, month, day, zday, year, quality, season, \
            zseason, episode, zepisode, title, type, extension, special
     
     # Get & Check extension first to speed up processing
-    filename  = filename.lower()
-    extension = filename[filename.rfind('.')+1:]
+    filepath = filepath.lower()
+    filename, extension  = os.path.splitext(os.path.basename(filepath))
+    extension = extension[1:]
     if extension not in extensions: return False
 
+    # If the filename is encoded like a hashname containing hexadecimal, use the directory name instead
+    if re.match(hexaPattern, filename):
+        filename = os.path.basename(os.path.dirname(filepath))
+
     # remove scenegroup from scenegroup-movie.title.*
-    hyph = string.find(filename, '-')
+    hyph = filename.find('-')
     if hyph < 10:
         filename = filename[hyph + 1:]
     
@@ -235,12 +242,17 @@ def populate_fields(filename):
     fmonth=smonth=zmonth=month=day=zday=year=quality=season=zseason=episode=zepisode=None
     title, special = [], []
     type  = "tv"
-    elems = re.split('[ _.-]', filename) 
+    elems = re.split('[ _.-]', filename)
     
-    # parse each filename element except the extension
-    for elem in elems[0:-1]:
+    # parse each filename element
+    for elem in elems:
+        elemLength = len(elem)
+
         # Check that the element is long enough to contain episode & season info
-        if len(elem) > 2:
+        if elemLength == 0:
+            continue
+        
+        if elemLength > 2:
             
             # sanitize show.[*].* and show.(*).*
             if elem[0] == '[': 
@@ -264,7 +276,7 @@ def populate_fields(filename):
                 break
             
             # show.01x01.*
-            if elem[2] == 'x' and elem[3].isdigit():
+            if elemLength == 5 and elem[2] == 'x' and elem[3].isdigit():
                 zseason  = elem[0:2]
                 zepisode = elem[3:5]
                 break            
@@ -277,7 +289,7 @@ def populate_fields(filename):
                 return True
 
             # found a year, so this is either a movie or dated show
-            if elem[0:2] in ["19", "20"] and elem[2:4].isdigit():
+            if elemLength == 4 and elem[0:2] in ["19", "20"] and elem[2:4].isdigit():
                 i       = elems.index(elem) + 1 # index of the next element
                 zseason = ""        # (Probably) no season for this file
                 elem    = elems[i]  # The new current element in the array
@@ -320,18 +332,17 @@ def populate_fields(filename):
             
             # show.0101.* / show.101.*
             if elem.isdigit():
-                if len(elem) == 4:
+                if elemLength == 4:
                     zseason  = elem[0:2]
                     zepisode = elem[2:4]
-                else:
+                elif elemLength == 3:
                     zseason  = "0" + elem[0]
                     zepisode = elem[1:3]
                 break
 
         # Determined this element to be part of the title so add it
-        if elem not in file_cleanup_queue:
-            title.append(elem)
-        
+        title.append(elem)
+    
     # All above breaks lead here when a show with season and episode is detected
     if zseason and zepisode:
         season  = zseason[-1]  if zseason[0]  == '0' else zseason
@@ -358,7 +369,12 @@ def rename(old, new):
                 os.makedirs(os.path.dirname(new))
             shutil.move(old, new)
             show("Moved:", new_path)
+
         file_cleanup_queue.append([old, new])
+    else:
+        print "Old file: " + old
+        print "New file: " + new
+        print
 
 sep = " ..."
 offset = consolesize - len(sep)
@@ -415,9 +431,10 @@ for root, dirs, files in os.walk(sourcedir):
     for old_filename in files:
         try:
             old_path = os.path.join(root, old_filename)
-            if os.path.getsize(old_path) >= min_size and populate_fields(old_filename):
+            if os.path.getsize(old_path) >= min_size and populate_fields(old_path):
+                
                 finalize_fields()
-
+                
                 if root != sourcedir or remove_src:
                     dir_cleanup_queue.add(root)
                     
