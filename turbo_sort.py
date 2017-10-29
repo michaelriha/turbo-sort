@@ -63,7 +63,8 @@ quality_attributes = ["1080p", "720p", "480p", "xvid", "1080i", "1080"]
 ignore_attributes = ["hdtv", "dts"]
 consolesize = 80
 
-hexaPattern = re.compile('[0-9a-fA-F]+')
+# To avoid problem of false positive hexa, start matching at 6 characters
+hexaPattern = re.compile('[0-9a-fA-F]{6}')
 
 #tvdest     = "D:\\Documents\\Scripts\\Script test files\\tvdest"
 #moviedest  = "D:\\Documents\\Scripts\\Script test files\\moviedest"
