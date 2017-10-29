@@ -21,6 +21,7 @@ import os
 import re
 import shutil
 import string
+import datetime
 
 # Edit these variables to your liking, make sure to use \\ for backslash or / for forward slash 
 undated_fs = "%t\\Season %s\\%t S%0s E%0e"
@@ -232,7 +233,9 @@ def populate_fields(filepath):
 
     # If the filename is encoded like a hashname containing hexadecimal, use the directory name instead
     if re.match(hexaPattern, filename):
-        filename = os.path.basename(os.path.dirname(filepath))
+        # To avoid file erasing, we put the file datetime in the name
+        fileatime = datetime.datetime.fromtimestamp(os.path.getatime(filepath))
+        filename = os.path.basename(os.path.dirname(filepath)) + "_" + fileatime.strftime("%Y%m%d_%H%M%S")
 
     # remove scenegroup from scenegroup-movie.title.*
     hyph = filename.find('-')
