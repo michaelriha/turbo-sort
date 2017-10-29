@@ -256,10 +256,10 @@ def populate_fields(filepath):
             
             # sanitize show.[*].* and show.(*).*
             if elem[0] == '[': 
-                closeindex = string.rfind(elem, ']')
+                closeindex = str.rfind(elem, ']')
                 elem       = elem[1:closeindex if closeindex != -1 else len(elem)]
             elif elem[0] == '(':
-                closeindex = string.rfind(elem, ')')
+                closeindex = str.rfind(elem, ')')
                 elem       = elem[1:closeindex if closeindex != -1 else len(elem)]
                 
             # show.s01e01.* / show.s01e01e02.* TODO: Fix multiepisode w/ non-def fs here
@@ -372,8 +372,8 @@ def rename(old, new):
 
         file_cleanup_queue.append([old, new])
     else:
-        print "Old file: " + old
-        print "New file: " + new
+        print ("Old file: " + old)
+        print ("New file: " + new)
         print
 
 sep = " ..."
@@ -401,7 +401,7 @@ def titler(title):
         if title[0] == "its": # Fix "Its Always Sunny in Philadelphia"
             result += "It's "
         else:
-            result += string.upper(title[0][0])
+            result += str.upper(title[0][0])
             result += title[0][1:]
             result += " "
         
@@ -412,7 +412,7 @@ def titler(title):
         elif remove_CC and len(word) == 2 and word in COUNTRIES:
             continue
         else:
-            result += string.upper(word[0])
+            result += str.upper(word[0])
             result += word[1:]
             result += " "
     return result[:-1]        
