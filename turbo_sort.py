@@ -372,8 +372,8 @@ def rename(old, new):
 
         file_cleanup_queue.append([old, new])
     else:
-        print "Old file: " + old
-        print "New file: " + new
+        print ("Old file: " + old)
+        print ("New file: " + new)
         print
 
 sep = " ..."
